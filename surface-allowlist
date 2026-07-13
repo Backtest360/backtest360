@@ -1,0 +1,46 @@
+# Public surface allowlist for the Backtest360 client.
+#
+# This repository follows a default-deny model: every tracked file must match
+# exactly one pattern below. Anything not listed is rejected by the local git
+# hooks and by the allowlist check in the CI workflow. Patterns are matched
+# with shell `case` semantics, so `*` spans path separators.
+
+# Package source
+src/backtest360/*
+
+# Usage examples
+examples/*
+
+# Smoke tests (exactly these five; new test files are not auto-approved)
+tests/conftest.py
+tests/test_http_behavior.py
+tests/test_public_surface.py
+tests/test_wire_format.py
+tests/test_strategy.py
+
+# Root pytest config: import-isolation guard (asserts the suite imports this
+# checkout's package; never mutates sys.path)
+conftest.py
+
+# Governance
+SECURITY.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+.github/ISSUE_TEMPLATE/*
+
+# Packaging
+README.md
+LICENSE
+pyproject.toml
+CHANGELOG.md
+.gitignore
+
+# CI workflows (exactly two; a third workflow is not approved)
+.github/workflows/release.yml
+.github/workflows/test.yml
+
+# Secret-scan config (generated)
+.gitleaks.toml
+
+# This allowlist
+surface-allowlist

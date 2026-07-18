@@ -185,6 +185,9 @@ class Result:
             ``"Sharpe"``) when the request was made with
             ``stats_keys="labels"``. See the metrics catalog on
             ``GET /api/sections`` for the full id/label/description mapping.
+        relative: Benchmark-relative metrics (Alpha, Beta, Information Ratio,
+            Tracking Error, Up/Down Capture, Capture Ratio), keyed the same way
+            as ``stats``. Empty dict when no benchmark was supplied.
         trades: List of trade dicts, each with ``entry_date``, ``exit_date``,
             ``direction``, ``return_net``, etc.
         strategy_equity: Strategy equity curve as a ``pd.Series`` indexed by datetime.
@@ -211,8 +214,9 @@ class Result:
         ...     print(trade["entry_date"], trade["return_net"])
     """
 
-    def __init__(self, data: dict[str, Any]) -> None:
+    def __init__(self, data: dict[str, Any], relative: dict[str, Any] | None = None) -> None:
         self._data = data
+        self._relative = relative or {}
 
     @property
     def stats(self) -> dict[str, Any]:
@@ -221,9 +225,25 @@ class Result:
         Keyed by stable snake_case metric id by default (e.g. ``"sharpe"``);
         see the ``stats_keys`` argument on the request method that produced
         this result and the metrics catalog on ``GET /api/sections``.
+
+        Benchmark-relative metrics (Alpha, Beta, Information Ratio, Tracking
+        Error, Up/Down Capture, Capture Ratio) are NOT in this dict — see
+        :attr:`relative`.
         """
         stats: dict[str, Any] = self._data.get("stats", {})
         return stats
+
+    @property
+    def relative(self) -> dict[str, Any]:
+        """Benchmark-relative metrics (Alpha, Beta, Information Ratio, Tracking
+        Error, Up/Down Capture, Capture Ratio), keyed the same way as ``stats``
+        (per the request's ``stats_keys``). Empty dict when no benchmark was
+        supplied.
+
+        These metrics are NOT in ``stats`` — the engine returns them in a
+        separate ``relative`` block, and the client surfaces them here.
+        """
+        return self._relative
 
     @property
     def trades(self) -> list[dict[str, Any]]:
@@ -1003,8 +1023,8 @@ class Client:
                 ``open``, ``high``, ``low``, ``close`` (and optionally
                 ``volume``).
             benchmark: Optional benchmark DataFrame (same shape as ``ohlcv``).
-                When provided, the engine adds Alpha, Beta, Information Ratio,
-                Tracking Error, Up/Down Capture to ``result.stats``.
+                When provided, benchmark-relative metrics (Alpha, Beta, Information Ratio,
+                Tracking Error, Up/Down Capture, Capture Ratio) are surfaced on ``result.relative``.
             execution: Execution timing config — ``entry``, ``exit``,
                 ``signal_frequency``, etc.
             costs: Transaction costs — ``slippage_bps``, ``fee_pct``, etc.
@@ -1479,4 +1499,5 @@ def _result_from_legs(resp: dict[str, Any]) -> "Result":
                 series = result_data.setdefault("series", {})
                 if isinstance(series, dict):
                     series.setdefault("benchmark_equity", bench_series["strategy_equity"])
-    return Result(result_data)
+    relative = strategy_leg.get("relative")
+    return Result(result_data, relative=relative if isinstance(relative, dict) else None)

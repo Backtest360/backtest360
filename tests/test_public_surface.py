@@ -222,3 +222,15 @@ def test_package_reimport_is_stable() -> None:
     # Sanity: re-importing yields the same locked surface.
     reloaded = importlib.import_module("backtest360")
     assert sorted(reloaded.__all__) == EXPECTED_ALL
+
+
+def test_result_relative_defaults_to_empty_dict() -> None:
+    data = {"stats": {"sharpe": 1.42}}
+    result = Result(data)
+    assert result.relative == {}
+
+
+def test_result_relative_is_exposed_when_provided() -> None:
+    data = {"stats": {"sharpe": 1.42}}
+    result = Result(data, relative={"beta": 1.2})
+    assert result.relative == {"beta": 1.2}

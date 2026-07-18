@@ -606,3 +606,48 @@ def test_non_serializable_payload_rejected_before_request(client: Client) -> Non
         client.backtest_raw({"value": float("nan")})
     assert exc.value.code == "CLIENT_INVALID_PAYLOAD"
     assert exc.value.status == 0
+
+
+def test_backtest_with_benchmark_exposes_relative_and_benchmark_equity(
+    client: Client, mock_engine, tiny_ohlcv
+) -> None:
+    dates = ["2024-01-01", "2024-01-02", "2024-01-03"]
+    mock_engine.queue(
+        make_response(
+            200,
+            json={
+                "status": "success",
+                "run": {"stats_keys": "ids"},
+                "legs": [
+                    {
+                        "id": "strategy",
+                        "result": {
+                            "stats": {"sharpe": 1.1},
+                            "series": {
+                                "dates": dates,
+                                "strategy_equity": [1.0, 1.02, 1.05],
+                            },
+                        },
+                        "relative": {"beta": 1.1, "alpha": 0.02},
+                    },
+                    {
+                        "id": "benchmark",
+                        "result": {
+                            "series": {
+                                "dates": dates,
+                                "strategy_equity": [1.0, 1.01, 1.03],
+                            },
+                        },
+                    },
+                ],
+            },
+        )
+    )
+    result = client.backtest(Strategy.rsi_threshold_long(), tiny_ohlcv, benchmark=tiny_ohlcv)
+
+    assert result.relative == {"beta": 1.1, "alpha": 0.02}
+    assert "beta" not in result.stats
+
+    bench_eq = result.benchmark_equity
+    assert len(bench_eq) > 0
+    assert list(bench_eq) == [1.0, 1.01, 1.03]

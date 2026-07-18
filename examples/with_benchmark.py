@@ -1,7 +1,7 @@
 """Benchmark comparison — alpha, beta, up/down capture.
 
-Pass benchmark=spy_df to get benchmark-relative metrics in result.stats.
-Metrics added when a benchmark is present: Alpha, Beta, Information Ratio,
+Pass benchmark=spy_df to get benchmark-relative metrics on result.relative.
+Metrics present when a benchmark is supplied: Alpha, Beta, Information Ratio,
 Tracking Error, Up Capture, Down Capture.
 
 Requirements (beyond backtest360):
@@ -46,10 +46,10 @@ except Exception:
 result = client.backtest(Strategy.rsi_mean_reversion(), df, benchmark=benchmark)
 
 print("Sharpe:", result.stats.get("sharpe"))
-print("Alpha:", result.stats.get("alpha"))
-print("Beta:", result.stats.get("beta"))
-print("Up Capture:", result.stats.get("up_capture"))
-print("Down Capture:", result.stats.get("down_capture"))
+print("Alpha:", result.relative.get("alpha"))
+print("Beta:", result.relative.get("beta"))
+print("Up Capture:", result.relative.get("up_capture"))
+print("Down Capture:", result.relative.get("down_capture"))
 
 ax = result.strategy_equity.plot(label="AAPL Strategy")
 result.benchmark_equity.plot(ax=ax, label="SPY (buy & hold)", linestyle="--")

@@ -220,10 +220,17 @@ For users who want exact control with the API docs open:
 
 ```python
 resp = Client(api_key="...").backtest_raw({
-    "strategy":    {"condition_tree": {...}, "indicators": [...]},
-    "data_source": {"ohlcv": {...}},
-    "execution":   {"signal_frequency": "daily"},
+    "run": {"stats_keys": "ids"},
+    "legs": [
+        {
+            "id":          "main",
+            "strategy":    {"condition_tree": {...}, "indicators": [...]},
+            "data_source": {"ohlcv": {...}},
+            "execution":   {"signal_frequency": "daily"},
+        },
+    ],
 })
+result = resp["legs"][0]["result"]
 ```
 
 ### Latest signal
@@ -272,7 +279,11 @@ for t in client.list_templates():                     # compact catalog
 
 strat = client.list_templates(name="rsi_mean_reversion")   # one full definition
 df = client.sample_data("SPY")
-result = client.backtest_raw({"strategy": strat, "data_source": {"ohlcv": ...}})
+resp = client.backtest_raw({
+    "run": {"stats_keys": "ids"},
+    "legs": [{"id": "main", "strategy": strat, "data_source": {"ohlcv": ...}}],
+})
+result = resp["legs"][0]["result"]
 ```
 
 ### Inspect your API key

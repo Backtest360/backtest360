@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- `Client.list_templates()` now accepts `collection`, `q`, `tags`, `detail`,
+  `limit`, and `offset` to filter and page through the strategy-template
+  catalog server-side, plus `raw=True` to get back the response envelope
+  (`count`, `total`, `next_offset`) needed to fetch further pages. Templates
+  also carry `collection` and `tags` fields when returned in full
+  (`compact=False`). Existing calls are unaffected — every new argument
+  defaults to unset, and the default request/response shape is unchanged.
+
+---
+
 ## [0.7.0] — 2026-07-18
 
 ### Added

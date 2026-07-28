@@ -522,6 +522,103 @@ def test_list_templates_malformed_response_raises(client: Client, mock_engine) -
     assert exc.value.code == "CLIENT_MALFORMED_RESPONSE"
 
 
+def test_list_templates_no_kwargs_sends_no_query_string(
+    client: Client, mock_engine
+) -> None:
+    # No new filter/paging kwarg given -> the request must be byte-identical
+    # to the call before filtering/paging existed: no query string at all.
+    mock_engine.queue(make_response(200, json=_templates_response()))
+    client.list_templates()
+    call = mock_engine.calls[0]
+    assert call["path"] == "/api/strategies"
+    assert call["query"] == ""
+
+
+def test_list_templates_filter_and_paging_kwargs_build_exact_query_string(
+    client: Client, mock_engine
+) -> None:
+    mock_engine.queue(make_response(200, json=_templates_response()))
+    client.list_templates(
+        collection="momentum",
+        q="rsi",
+        tags=["mean-reversion", "long-only"],
+        detail="full",
+        limit=20,
+        offset=40,
+    )
+    call = mock_engine.calls[0]
+    assert call["path"] == "/api/strategies"
+    assert call["query"] == (
+        "collection=momentum&q=rsi&tags=mean-reversion%2Clong-only"
+        "&detail=full&limit=20&offset=40"
+    )
+
+
+def test_list_templates_tags_accepts_a_single_string(
+    client: Client, mock_engine
+) -> None:
+    # A single tag as a plain string is sent as-is, not iterated character by
+    # character.
+    mock_engine.queue(make_response(200, json=_templates_response()))
+    client.list_templates(tags="momentum")
+    call = mock_engine.calls[0]
+    assert call["query"] == "tags=momentum"
+
+
+def test_list_templates_only_given_kwargs_appear_on_the_wire(
+    client: Client, mock_engine
+) -> None:
+    # Kwargs left at their default (None) are omitted entirely, not sent as
+    # empty values.
+    mock_engine.queue(make_response(200, json=_templates_response()))
+    client.list_templates(collection="all", limit=10)
+    call = mock_engine.calls[0]
+    assert call["query"] == "collection=all&limit=10"
+
+
+def _paged_templates_response() -> dict:
+    """A ``/api/strategies`` payload carrying pagination envelope keys."""
+    resp = _templates_response()
+    resp["strategies"][0]["collection"] = "curated"
+    resp["strategies"][0]["tags"] = ["mean-reversion", "oscillator"]
+    resp["count"] = 2
+    resp["total"] = 57
+    resp["next_offset"] = 2
+    return resp
+
+
+def test_list_templates_raw_returns_full_envelope(
+    client: Client, mock_engine
+) -> None:
+    mock_engine.queue(make_response(200, json=_paged_templates_response()))
+    out = client.list_templates(raw=True)
+    assert isinstance(out, dict)
+    assert out["count"] == 2
+    assert out["total"] == 57
+    assert out["next_offset"] == 2
+    assert len(out["strategies"]) == 2
+
+
+def test_list_templates_full_entries_expose_collection_and_tags(
+    client: Client, mock_engine
+) -> None:
+    mock_engine.queue(make_response(200, json=_paged_templates_response()))
+    out = client.list_templates(compact=False)
+    assert isinstance(out, list)
+    assert out[0]["collection"] == "curated"
+    assert out[0]["tags"] == ["mean-reversion", "oscillator"]
+
+
+def test_list_templates_by_name_ignores_raw(client: Client, mock_engine) -> None:
+    # `raw` only applies to the list form; a name lookup still returns the
+    # single matched template dict.
+    mock_engine.queue(make_response(200, json=_paged_templates_response()))
+    out = client.list_templates(name="rsi_mean_reversion", raw=True)
+    assert isinstance(out, dict)
+    assert out["id"] == "rsi_mean_reversion"
+    assert "strategies" not in out
+
+
 def test_me_returns_key_introspection(client: Client, mock_engine) -> None:
     payload = {
         "scopes": ["backtest.run", "meta.read"],

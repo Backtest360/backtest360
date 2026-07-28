@@ -286,6 +286,21 @@ resp = client.backtest_raw({
 result = resp["legs"][0]["result"]
 ```
 
+Filter and page through a larger catalog with `collection`, `q`, `tags`, `limit`,
+and `offset`; pass `raw=True` to get back the response envelope (`count`,
+`total`, `next_offset`) needed to fetch the next page:
+
+```python
+page = client.list_templates(
+    collection="all", tags=["momentum"], q="breakout", limit=20, offset=0, raw=True
+)
+for t in page["strategies"]:
+    print(t["id"], t.get("collection"), t.get("tags"))
+
+if page["next_offset"] is not None:
+    next_page = client.list_templates(collection="all", limit=20, offset=page["next_offset"])
+```
+
 ### Inspect your API key
 
 See your key's scopes, rate limits, and current usage up front — so you can size

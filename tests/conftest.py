@@ -64,10 +64,12 @@ class RecordingTransport:
         body = None
         if content is not None:
             body = json.loads(content)
+        split = urlsplit(url)
         self.calls.append(
             {
                 "method": method,
-                "path": urlsplit(url).path,
+                "path": split.path,
+                "query": split.query,
                 "json": body,
                 "headers": dict(headers or {}),
             }

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import os
+from collections.abc import Iterable
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any
 
@@ -685,23 +686,35 @@ class Client:
         name: str | None = None,
         compact: bool = True,
         *,
+        collection: str | None = None,
+        q: str | None = None,
+        tags: str | Iterable[str] | None = None,
+        detail: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        raw: bool = False,
         request_id: str | None = None,
     ) -> list[dict[str, Any]] | dict[str, Any]:
         """Return the predesigned strategy templates from ``GET /api/strategies``.
 
-        The engine serves code-shipped, versioned strategy definitions. The
-        response is tier-filtered server-side by the calling key's scopes:
-        non-admin keys see only public templates. Each template is a
-        ready-to-run strategy in the canonical shape a backtest accepts
-        (``condition_tree`` + ``indicators``) plus parameter metadata
-        (``requires`` / ``defaults`` / ``locked_params``) and an ``origin`` tag.
+        The engine serves code-shipped, versioned strategy definitions,
+        organized into named collections. The response is tier-filtered
+        server-side by the calling key's scopes: non-admin keys see only
+        public templates. Each template is a ready-to-run strategy in the
+        canonical shape a backtest accepts (``condition_tree`` + ``indicators``)
+        plus parameter metadata (``requires`` / ``defaults`` / ``locked_params``)
+        and ``origin`` / ``collection`` / ``tags`` fields.
 
         With no arguments, returns a compact catalog — a list of dicts carrying
-        only ``id``, ``origin``, ``name``, and ``description`` — enough to browse
-        and choose. Pass ``compact=False`` for the full definition of every
-        template. Pass ``name`` (an ``id`` or ``name``, matched
-        case-insensitively) to return that single template's full entry as a
-        dict; ``compact`` is ignored in that case.
+        only ``id``, ``origin``, ``name``, and ``description`` — for the
+        engine's default collection (currently the curated set). Pass
+        ``compact=False`` for the full definition of every template. Pass
+        ``name`` (an ``id`` or ``name``, matched case-insensitively) to return
+        that single template's full entry as a dict; ``compact`` is ignored in
+        that case.
+
+        Use ``collection``, ``q``, and ``tags`` to filter which templates come
+        back, and ``limit`` / ``offset`` to page through a large result set.
 
         Args:
             name: Optional ``id`` or ``name`` of one template to fetch in full,
@@ -710,12 +723,36 @@ class Client:
             compact: When ``True`` (the default) and ``name`` is not given,
                 each returned entry carries only the compact discovery fields.
                 When ``False``, each entry is the template's full definition.
+            collection: Which collection to browse — a collection name, or
+                ``"all"`` to search across every collection. Left unset by
+                default, which leaves the engine's own default collection in
+                effect.
+            q: Free-text search over template name, description, and tags.
+                Unset by default (no search filter applied).
+            tags: One tag, or an iterable of tags, to filter by. An iterable
+                is joined into the comma-separated list the engine expects.
+                Unset by default (no tag filter applied).
+            detail: ``"full"`` or ``"compact"`` — asks the engine itself to
+                include full or compact fields per entry on the wire. This is
+                independent of the ``compact`` argument above, which trims
+                fields on the client side after the response arrives; pass
+                ``detail="compact"`` to also reduce what the server sends.
+                Unset by default.
+            limit: Maximum number of templates to return (the engine accepts
+                1-500). Unset by default (the engine's own default applies).
+            offset: Number of matching templates to skip, for paging through
+                results beyond ``limit``. Unset by default.
+            raw: When ``True`` (and ``name`` is not given), return the
+                engine's full response envelope instead of just the entry
+                list — including ``count``, ``total``, and ``next_offset``,
+                which you need to page through a filtered or large catalog.
             request_id: Optional correlation id sent as the ``X-Request-ID``
                 header. See :meth:`version`.
 
         Returns:
-            A list of template dicts, or — when ``name`` is given — the single
-            matching template dict.
+            A list of template dicts; the raw response envelope dict when
+            ``raw=True``; or — when ``name`` is given — the single matching
+            template dict.
 
         Raises:
             Backtest360Error: On any non-2xx response, or, when ``name`` is
@@ -726,9 +763,30 @@ class Client:
             >>> for t in client.list_templates():
             ...     print(t["id"], "-", t["description"])
             >>> strat = client.list_templates(name="rsi_mean_reversion")
+            >>> page = client.list_templates(
+            ...     collection="all", tags=["momentum"], limit=20, raw=True
+            ... )
+            >>> print(page["total"], page["next_offset"])
             >>> result = client.backtest_raw({"strategy": strat, ...})
         """
-        resp = self._request("GET", "/api/strategies", request_id=request_id)
+        tags_param: str | None
+        if tags is None or isinstance(tags, str):
+            tags_param = tags
+        else:
+            tags_param = ",".join(tags)
+        resp = self._request(
+            "GET",
+            "/api/strategies",
+            request_id=request_id,
+            params={
+                "collection": collection,
+                "q": q,
+                "tags": tags_param,
+                "detail": detail,
+                "limit": limit,
+                "offset": offset,
+            },
+        )
         if isinstance(resp, dict):
             entries = resp.get("strategies")
         elif isinstance(resp, list):
@@ -759,6 +817,9 @@ class Client:
                 status=0,
                 code="CLIENT_TEMPLATE_NOT_FOUND",
             )
+
+        if raw:
+            return resp
 
         if compact:
             return [

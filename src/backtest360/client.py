@@ -7,7 +7,7 @@ import math
 import os
 from collections.abc import Iterable
 from importlib.metadata import PackageNotFoundError, version
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 import pandas as pd  # type: ignore[import-untyped]
@@ -819,7 +819,7 @@ class Client:
             )
 
         if raw:
-            return resp
+            return cast("list[dict[str, Any]] | dict[str, Any]", resp)
 
         if compact:
             return [

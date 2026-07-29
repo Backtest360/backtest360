@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] — 2026-07-30
+
+### Changed
+
+- Packaging-only release. Client behaviour and the public API are unchanged
+  from 0.8.0; this release exists to align the published version with the
+  current repository state.
+
+---
+
 ## [0.8.0] — 2026-07-30
 
 ### Added

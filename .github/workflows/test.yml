@@ -35,6 +35,30 @@ jobs:
       - name: Test
         run: pytest -q
 
+  types:
+    name: types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # the build backend derives the version from VCS tags
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # mypy is installed here rather than declared as a dev extra: pyproject.toml
+      # carries only the minimal dev extra, no tooling sections.
+      - name: Install
+        run: |
+          pip install -e .[dev]
+          pip install mypy
+
+      # The private suite gates this too, but only at publish time — running it
+      # here stops a type error reaching main in the first place.
+      - name: Type-check
+        run: mypy --strict src/backtest360
+
   surface:
     name: surface
     runs-on: ubuntu-latest
